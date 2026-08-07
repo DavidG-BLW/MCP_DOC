@@ -1,0 +1,11 @@
+{
+    "name": "playwright-mcp-server",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "npx -y @playwright/mcp@latest --transport sse --port $PORT"
+    },
+    "dependencies": {
+        "@playwright/mcp": "latest"
+    }
+}
