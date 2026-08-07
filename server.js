@@ -1,32 +1,57 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { spawn } from "child_process";
 import express from "express";
-// Corrección de la importación para módulos CommonJS
-import pkg from "@playwright/mcp";
-const { PlaywrightServer } = pkg;
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Definimos un token de seguridad básico
-const API_KEY = process.env.MCP_API_KEY || "mi_clave_secreta_temporal";
-
 app.use(express.json());
 
-// Servidor de Playwright MCP
-const mcpServer = new PlaywrightServer();
-
-// Endpoint con verificación de seguridad integrada
+// Endpoint HTTP que actúa como puente directo al binario de Playwright MCP
 app.post("/mcp", async (req, res) => {
-  const clientKey = req.headers["x-api-key"];
+  try {
+    // Ejecutamos el servidor de Playwright MCP de forma nativa en segundo plano
+    const mcpProcess = spawn("npx", ["-y", "@playwright/mcp@latest"], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
 
-  if (!clientKey || clientKey !== API_KEY) {
-    return res.status(401).json({ error: "No autorizado. Token inválido o ausente." });
+    let stdoutData = "";
+    let stderrData = "";
+
+    // Enviamos la petición JSON entrante de la IA al proceso de Playwright
+    mcpProcess.stdin.write(JSON.stringify(req.body) + "\n");
+    mcpProcess.stdin.end();
+
+    // Capturamos la respuesta del servidor oficial
+    mcpProcess.stdout.on("data", (data) => {
+      stdoutData += data.toString();
+    });
+
+    mcpProcess.stderr.on("data", (data) => {
+      stderrData += data.toString();
+    });
+
+    mcpProcess.on("close", (code) => {
+      if (code !== 0 && !stdoutData) {
+        console.error("Error en Playwright MCP:", stderrData);
+        return res.status(500).json({ error: "Error interno en Playwright MCP", details: stderrData });
+      }
+
+      try {
+        // Devolvemos la respuesta formateada al cliente (Cursor/Claude)
+        const jsonResponse = JSON.parse(stdoutData.trim());
+        res.json(jsonResponse);
+      } catch (e) {
+        // Si no es JSON puro, respondemos con el texto en crudo
+        res.send(stdoutData);
+      }
+    });
+
+  } catch (error) {
+    console.error("Fallo al invocar el proceso:", error);
+    res.status(500).json({ error: "Fallo en el puente del servidor" });
   }
-
-  // Si el token es correcto, procesamos la petición MCP
-  mcpServer.handleRequest(req, res);
 });
 
 app.listen(port, () => {
-  console.log(`¡Éxito! Playwright MCP remoto escuchando en el puerto ${port}`);
+  console.log(`🚀 ¡Servidor puente activo en Railway! Escuchando en el puerto ${port}`);
 });
