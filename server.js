@@ -1,20 +1,32 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StreamableMethod } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import { PlaywrightServer } from "@playwright/mcp"; // Asegura la importación según la última documentación del paquete
 import express from "express";
+// Corrección de la importación para módulos CommonJS
+import pkg from "@playwright/mcp";
+const { PlaywrightServer } = pkg;
 
 const app = express();
-const port = process.env.PORT || 3000; // Railway inyectará el puerto automáticamente
+const port = process.env.PORT || 3000;
 
-// 1. Configurar e inicializar el servidor básico de Playwright MCP
-const mcpServer = new PlaywrightServer(); 
+// Definimos un token de seguridad básico
+const API_KEY = process.env.MCP_API_KEY || "mi_clave_secreta_temporal";
 
-// 2. Montar el endpoint '/mcp' usando transporte HTTP
+app.use(express.json());
+
+// Servidor de Playwright MCP
+const mcpServer = new PlaywrightServer();
+
+// Endpoint con verificación de seguridad integrada
 app.post("/mcp", async (req, res) => {
-  // El SDK de MCP procesa los mensajes entrantes del cliente remoto (Cursor/Claude)
+  const clientKey = req.headers["x-api-key"];
+
+  if (!clientKey || clientKey !== API_KEY) {
+    return res.status(401).json({ error: "No autorizado. Token inválido o ausente." });
+  }
+
+  // Si el token es correcto, procesamos la petición MCP
   mcpServer.handleRequest(req, res);
 });
 
 app.listen(port, () => {
-  console.log(`Playwright MCP remoto escuchando en el puerto ${port}`);
+  console.log(`¡Éxito! Playwright MCP remoto escuchando en el puerto ${port}`);
 });
