@@ -1,12 +1,14 @@
-FROM mcr.microsoft.com/playwright:v1.49.0-noble
+# Usamos la imagen oficial de Microsoft que ya viene con los navegadores instalados
+FROM ://microsoft.com
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
 
+COPY . .
+
+# Exponer el puerto asignado por Railway
 EXPOSE 3000
 
-ENV PORT=3000
-
-CMD ["npx", "-y", "@playwright/mcp@latest", "--transport", "sse", "--port", "3000"]
+CMD ["node", "server.js"]
