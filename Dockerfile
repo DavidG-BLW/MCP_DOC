@@ -1,14 +1,16 @@
-# Usamos la imagen oficial de Microsoft que ya viene con los navegadores instalados
-FROM ://microsoft.com
+# Usamos la imagen oficial desde Docker Hub para evitar el error de sintaxis en Railway
+FROM playwright/chromium:v1.49.0
 
 WORKDIR /app
 
+# Copiar archivos de dependencias
 COPY package*.json ./
 RUN npm install
 
+# Copiar el resto del código
 COPY . .
 
-# Exponer el puerto asignado por Railway
+# Exponer el puerto
 EXPOSE 3000
 
 CMD ["node", "server.js"]
